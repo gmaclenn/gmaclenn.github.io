@@ -1,11 +1,12 @@
 # Site wide configuration
 
-title: Site Title
+title: Greg MacLennan
 locale: en_US
-description: Describe your website here.
+description: A Collection of Data Science Projects and Personal Interests
 logo: site-logo.png
 search: true
-url: http://localhost:4000
+url: http://gmaclenn.github.io/ # comment for local hosting
+# url: http://localhost:4000 # uncomment for local hosting
 
 # Jekyll configuration
 
@@ -44,9 +45,9 @@ owner:
   facebook: #username
   github: gmaclenn
   stackexchange: #http://stackoverflow.com/users/123456/username
-  linkedin: #username
+  linkedin: gregmaclennan
   instagram: #username
-  flickr: #username
+  flickr: gmaclenn
   tumblr: #username
   pinterest: #username
   weibo: #userid

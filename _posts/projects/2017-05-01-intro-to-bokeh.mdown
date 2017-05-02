@@ -1,0 +1,12 @@
+---
+layout: post
+title: "An Introduction to Interactive Visualizations with Bokeh"
+modified:
+categories: blog
+excerpt: Some highlights from my ODSC presentation on interactive visualizations.
+tags: [Python, Bokeh]
+image:
+  feature:
+date: 2017-05-01
+---
+** Coming Soon **

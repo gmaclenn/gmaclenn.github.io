@@ -1,95 +1,69 @@
 ---
 layout: post
-title: Predicting NHL success from the Canadian Hockey Leagues (CHL)
-category: Projects
+title: "Predicting NHL success from the Canadian Hockey Leagues (CHL)"
+categories: articles
 disqus: disabled
+tags: [Random Forests, Classification, AdaBoost, SVM, NHL]
 excerpt: I examined players from the Canadian Hockey League and built a classifier to predict whether or not a player would make it to the NHL and record at the minimum a 20 point season.
 ---
 
-### Executive Summary:
-
+## Executive Summary
 A significant part of any sports teams’ success is effective player drafting and acquisition. The NHL is no different in this regard and has been ramping up the use of data analytics to help improve efficiency in these areas. In this project, I examined players from the Canadian Hockey League (CHL) (a composite of the Ontario Hockey League (OHL), Western Hockey League (WHL), and Quebec Major Junior Hockey League (QMJHL)) and built a classifier to predict whether or not a player would make it to the NHL and record at the minimum a 20 point season. There are a number of different ways to measure NHL success, Jonathan Willis makes the case that 200-games played in the NHL is a strong cut-off as to whether a prospect has “made it” in the NHL[5]. I wanted to look at offensive capabilities, so I decided upon the 20 point mark which only 38% (612/1591) of players reached this mark from NHL seasons 2011-2016 [6]. I found that only about 7% of players from our training CHL dataset ever actually record 20+ point season in the NHL, and that some of the best indicators for this criteria of success are age, assists per game, power play assists per game and power play goals per game. Unsurprisingly, I found that while it was very easy to predict the players who were unlikely to make it, the players who did reach the 20+ point mark had a very wide range of statistical production at the CHL level, making it very hard to predict the “winners” from the cohort.
 
-There are some other interesting analyses on player prospecting. Most similarly, the proposed Prospect Cohort Success (PCS) model from Josh Weissbock, looks at evaluating CHL players by comparing them to existing NHL players and using that score to predict the probability that the player will reach the NHL[2]. Another useful tool and popular approach for evaluating prospects success is to project their expected scoring capabilities were they to jump to the NHL[8] or to determine how many goals is worth in one league translates to another[9]. Below I will walk through the data used in this process, the evaluation of models and the information we can glean from this study.
+There are some other interesting analyses on player prospecting. Most similarly, the proposed Prospect Cohort Success (PCS) model from Josh Weissbock, looks at evaluating CHL players by comparing them to existing NHL players and using that score to predict the probability that the player will reach the NHL[2]. Another useful tool and popular approach for evaluating prospects success is to project their expected scoring capabilities were they to jump to the NHL[8] or to determine how many goals is worth in one league translates to another[9]. Below I will walk through the data used in this process, the evaluation of models and the information you can glean from this study.
 
-### Data:
+#### Data Collection
 
 In order to build my CHL classifier model, I had to pull historical data from the CHL leagues. I was able to pull data directly from the three leagues websites ohl.ca[10], ontariohockeyleague.com[11] and theqmjhl.ca[12]. The websites had data back to the 1997-98 seasons, and as such that was the beginning of my data for modeling. I looked for some general baseline on peak performance in the NHL to see where an appropriate cut-off may be for the upper end. One estimation suggest that peak per-game point performance peaks at ages 24-26 [7]. Using this guideline, I used the 2004-05 season as the cutoff on the upper end of the data. With the youngest of these players being ~29 years of age at the time we pulled their NHL performance, I worked under the assumption that the players from the 98-05 seasons, had already reached their full potential.
 
-I pulled NHL data from hockey-reference.com[13] from 97-98 through 2015-16 NHL seasons. Once I had the CHL datasets and NHL datasets loaded, I put the NHL dataset into a pivot table, with the player as the index and the aggregating fuction as a max function, so that we have a list of NHL players with their highest full season point total from 98-16. From here I matched up the NHL max points season dataset with the CHL dataset on player's names to give us our target variable for the analysis. There were some manual connections that were necessary to ensure that players names from the hockey-reference database matched the CHL databases (e.g Pierre-Alexandre Parenteau & P.A. Parenteau). There were also instances where it was necessary to distinguish between two players with the same name. From here we had our master CHL database with our target variable attached to the dataframe.
+I pulled NHL data from hockey-reference.com[13] from 97-98 through 2015-16 NHL seasons. Once I had the CHL datasets and NHL datasets loaded, I put the NHL dataset into a pivot table, with the player as the index and the aggregating fuction as a max function, so that I had a list of NHL players with their highest full season point total from 98-16. From here I matched up the NHL max points season dataset with the CHL dataset on player's names to give us our target variable for the analysis. There were some manual connections that were necessary to ensure that players names from the hockey-reference database matched the CHL databases (e.g Pierre-Alexandre Parenteau & P.A. Parenteau). There were also instances where it was necessary to distinguish between two players with the same name. From here I had a master CHL database with our target variable attached to the dataframe.
 
-### Modeling Process:
-
-From here I will discuss the model selection and feature selection process.
-
-### Library Import
-
-
-```python
-import pandas as pd
-import seaborn as sns
-import numpy as np
-import matplotlib.pyplot as plt
-
-from IPython.display import Image
-from datetime import datetime
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc, f1_score
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.grid_search import GridSearchCV
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import AdaBoostClassifier
-
-%matplotlib inline
-```
-
-### Data Import
-
+#### Data Import
+Once collected and combined, the dataset was imported to work on the modeling process.
 
 ```python
 chl = pd.read_csv('../Combined CHL Data/chl_98_16_pts_bin.csv')
-chl = chl.sort_values(by='season_start_date', ascending=False).reset_index() # reorder by season and reset index
+# reorder by season and reset index
+chl = chl.sort_values(by='season_start_date', ascending=False).reset_index() 
 ```
 
-### Narrow down the stats we will explore for the analysis
+#### Data Preprocessing
 
-At this stage in the process we had to select what statistics we wanted to work with. A number of statistics such as shots and shot percentage were not tracked during the 98-05 seasons and were not consistent across all three leagues. What we were left with was the below list.
+At this stage in the process I had to select what statistics I wanted to work with. A number of statistics such as shots and shot percentage were not tracked during the 98-05 seasons and were not consistent across all three leagues. What I was left with was the below list.
 
 
 ```python
-keep_list = [ 'full_name', 'birthdate', 'rookie', 'points_per_game', 'position', 'penalty_minutes_per_game',
-             'games_played','weight', 'season', 'team_id', 'points', 'assists', 'goals', 'power_play_assists',
-             'season_start_date', 'power_play_goals', 'short_handed_assists', 'short_handed_goals', 'unassisted_goals', 'league',
-             'max_pt_season_bin', 'unassisted_goals', 'points', 'overtime_goals', 'empty_net_goals']
+keep_list = ['full_name', 'birthdate', 'rookie', 'points_per_game',
+             'position', 'penalty_minutes_per_game', 'games_played',
+             'weight', 'season', 'team_id', 'points', 'assists', 'goals',
+             'power_play_assists', 'season_start_date', 'power_play_goals',
+             'short_handed_assists', 'short_handed_goals', 'unassisted_goals',
+             'league', 'max_pt_season_bin', 'unassisted_goals', 'points',
+             'overtime_goals', 'empty_net_goals']
 
 X = chl[keep_list]
 ```
-
+Prior to starting any of our models and analysis, I wanted to look at a base model and get a sense for what the success rate was for the players from the CHL making it to the 20 point mark in the NHL. This will be extremely valuable for later evaluating how well our model does. If I can't beat the values here our model is not much better than selecting all players to not make the 20 point mark in the NHL.
 
 ```python
 # watermark for a base model w/ using player data from 98-05
-# must run up to the "filter by season" section for this to run
 b = pd.pivot_table(X_fin, index='full_name',
                    aggfunc=np.mean).max_pt_season_bin.value_counts()
 (b / sum(b)) * 100
+
+0.0     92.999110
+20.0     3.619104
+40.0     1.720558
+60.0     1.661228
+Name: max_pt_season_bin, dtype: float64
 ```
-
-
-
-
-    0.0     92.999110
-    20.0     3.619104
-    40.0     1.720558
-    60.0     1.661228
-    Name: max_pt_season_bin, dtype: float64
-
 
 
 <img src="/images/fulls/CHL-classifier-98-05-technical-report_files/CHL-classifier-98-05-technical-report_11_0.png" class="fit image"/>
 
-### Converting Date Objects (Birthday & Season Start Date)
+### Datetime Conversion
 
-In this area, I made sure we converted objects to datetime so that we could calculate season start date, birthdate, and season start age for each player. Using birthdate instead of year will give us greater granularity on players performance at a given age.
+I made sure the appropriate categories were converted objects to datetime so that I could calculate season start date, birthdate, and season start age for each player. Using birthdate instead of year will give a much greater granularity on players performance at a given age.
 
 
 ```python
@@ -104,13 +78,17 @@ def age_diff(season_start, birthdate):
     return (season_start - birthdate)
 
 
-# gets the age differences between the start date and draft date
+# calculates the season start age age
 X.loc[:, 'season_start_age'] = age_diff(
     X.loc[:, 'season_start_date'], X.loc[:, 'birthdate'])
+
+# convert season start_age to years
+X.loc[:, 'season_start_age'] = [
+    (i / np.timedelta64(1, 'D')) / 365 for i in X.season_start_age]
 ```
 
-### Create per game stats and per game squared
-
+#### Generating Per Game Stats
+While pure point production can sometimes be valuable, I wanted to specifically look at per-game production to include players who may have bloomed late or had seasons cut short due to injuries.
 
 ```python
 def per_game_stats(games_played, stat_column):
@@ -136,55 +114,30 @@ X.loc[:, 'pp_apg2'] = X.loc[:, 'pp_apg'].apply(lambda x: pow(x, 2))
 X.loc[:, 'pp_gpg2'] = X.loc[:, 'pp_gpg'].apply(lambda x: pow(x, 2))
 ```
 
-### Convert the datetime object from days to years for ease of understanding
-
-```python
-# **ONLY RUN ONCE**
-# convert season start_age to years
-X.loc[:, 'season_start_age'] = [
-    (i / np.timedelta64(1, 'D')) / 365 for i in X.season_start_age]
-```
-
-### Drop the columns we modified but will no longer need
-
+Given that I was looking at a per game basis for point production, I removed a few of the features that were used to generate the per game stats.
 
 ```python
 drop_list = ['season_start_date', 'short_handed_goals', 'short_handed_assists',
-             'power_play_assists', 'power_play_goals', 'unassisted_goals', 'draft_day']
+             'power_play_assists', 'power_play_goals', 'unassisted_goals', 
+             'draft_day']
 X = X.drop(drop_list, axis=1, errors='ignore')
 ```
 
 
-### Impute missing values
+#### Dealing with Missing Values and Categorical Data
 
 ```python
 # replace NaN weights with the mean value of weights
 X.loc[:, 'weight'] = X.loc[:, 'weight'].fillna(
     value=round(X.loc[:, 'weight'].mean(), 2))
 ```
-
-### Create categorical variables for league and position
-
-
 ```python
 pos_dum = pd.get_dummies(X.position)
 league_dum = pd.get_dummies(X.league)
 ```
 
-### Concatenate the dummy variables to the main dataframe
-
-
-```python
-df_final = pd.concat([X, pos_dum, league_dum], axis=1).drop(['position', 'assists', 'goals', 'points', 'team_id',
-                                                             'points_per_game', 'index', 'league'], axis=1, errors='ignore')
-```
-
 ## Data cleaning
-
-Assumptions:
-- removed goalie data: goalies will not be scoring points.
-- removed start ages over 22: some CHL data had birthdates with a year of -1, assuming that these are where birthdates are not known, so I removed them from the dataset.
-
+Once I had a DataFrame with the features I desired, I looked into filtering the DataFrame further based on some assumptions that I wanted to make about the data. First off, I removed all goalies from the dataset as goalies do not score very many points, and whether or not they do is really not a point of interest for me at this time. I also removed a few data points where the players start ages were well over 22. Within the CHL database there were a few birthdays that were not known and thus provided a birth year of -1, which severely skewed the models I built. Another option would have been to impute the mean value, but given the small amount of players this affected, I removed them all toegether.
 
 ```python
 df_final = df_final[(df_final.G != 1)]  # filter out goalies
@@ -196,54 +149,43 @@ df_final = df_final.reset_index().drop(
     ['level_0', 'index'], axis=1, errors='ignore')
 ```
 
-
 ```python
 y = df_final[['max_pt_season_bin', 'season', 'full_name']]
 ```
 
-#### Export dataframe to tableau for exploratory data analysis
-
-
-```python
-# df_final.to_csv('../Combined CHL Data/condensed_chl_data.csv')
-```
-
+I renamed some of the columns and shortened them so that they were easier to reference and visualize in the heatmap.
 
 ```python
 df_final = df_final.rename(columns={'penalty_minutes_per_game': 'pim_pg',
-                                    'max_pt_season_bin': 'max_pt_season', 'empty_net_goals': 'en_goals', 'overtime_goals': 'ot_goals'})
+                                    'max_pt_season_bin': 'max_pt_season',
+                                    'empty_net_goals': 'en_goals',
+                                    'overtime_goals': 'ot_goals'})
 sns.heatmap(df_final.corr())
 plt.xticks(rotation=90)
 plt.tight_layout()
-plt.savefig('/Users/gmaclenn/Documents/capstone-project/heatmap.png',
-            dpi=300, pad_inches=0.5)
 ```
 
 <img src="/images/fulls/CHL-classifier-98-05-technical-report_files/CHL-classifier-98-05-technical-report_32_0.png" class="fit image"/>
 
-<img src="/images/fulls/CHL-classifier-98-05-technical-report_files/feature-heatmap.png" class="fit image"/>
-
 Taking a look at the heatmap you can see that there are a number of features that are highly correlated with eachother. Since I was dealing with a number of statistics that are either subsets of eachother (short handed assists per game and assists per game) or derivatives of eachother (asissts per game and assists per game squared), it makes intuitive sense that there would be these correlations.
 
-Taking a look at the target variable max_pt_season, it's also evident that a number of the point production statistics have a moderate correlation.
+<img src="/images/fulls/CHL-classifier-98-05-technical-report_files/feature-heatmap.png" class="fit image"/>
 
-
+Taking a look at the target variable max_pt_season, it's also evident that there is some correlation between point production statistics and our desired outcome of a 20+ point NHL season.
 
 <img src="/images/fulls/CHL-classifier-98-05-technical-report_files/CHL-classifier-98-05-technical-report_33_0.png" class="fit image"/>
 
 In the pairplot I produced, it is evident that there is quite a bit of noise. There is a large subset of players with very high assists per game and goals per game production at a very young age that never even make it to the NHL. There is a slight up and to the right trend for the assists per game and goals per game and a slight up and to the left for the season start age plots.
 
 <img src="/images/fulls/CHL-classifier-98-05-technical-report_files/Avg-apg-98-05.png" class="fit image"/>
-
-<img src="/images/fulls/CHL-classifier-98-05-technical-report_files/avg-apg-98-05_overlay.png" class="fit image"/>
-
 In addition when looking at the assists per game by season start age scatter plot we can see that there's no clear delineation between features. A simple logistic regression or SVM model will not suffice to differentiate between the players who make it and those who don't. I used this exploratory data analysis to help guide my decision making as we moved through the modeling phase.
 
+<img src="/images/fulls/CHL-classifier-98-05-technical-report_files/avg-apg-98-05_overlay.png" class="fit image"/>
 
 While I pulled all CHL data from 98-16, I had to decide upon a cutoff on the upper end of our data. The reason for this as described in the introduction is because I needed to make a distinction about a point in time that I can reasonably assume a players production has "settled". In other words, I am making the assumption that players from the 2004-05 season (which are at a minimum 29 years of age as of the 2015-2016 season) will not change whether or not they meet my production criteria.
 
 
-### Filter by the cutoff season
+#### Filter by the cutoff season
 
 
 ```python
@@ -257,19 +199,15 @@ y = y[(y['season'] < season_cutoff) | (y['season'] > 90)]
 
 
 # will not be able to verify but for fun
-fun_final_test = df_final[(df_final['season'] > 12)
+draft_eligible_test = df_final[(df_final['season'] > 12)
                           & (df_final['season'] < 90)]
 ```
-
-
 ```python
-draft_eligible_17 = fun_final_test[(fun_final_test.birthdate > datetime(1997, 1, 1)) &
-                                   (fun_final_test.birthdate < datetime(1999, 9, 15))]
+draft_eligible_17 = draft_eligible[
+    (draft_eligible.birthdate > datetime(1997, 1, 1))
+    & (draft_eligible.birthdate < datetime(1999, 9, 15))]
 ```
-
-### Use pivot tables on the data
-
-This will allow us to see a players full body of work and use an average of those metrics.
+I used pivot tables to average the metrics in order to get a players full body of work as well as to account for the fact that we were looking at a few years of production.
 
 ```python
 X_piv = pd.pivot_table(X_fin, index='full_name', aggfunc=np.mean).drop(
@@ -278,20 +216,10 @@ y_piv = pd.pivot_table(y, index='full_name',
                        aggfunc=np.mean).drop(['season'], axis=1)
 
 # for final analysis
-draft_eligible_17 = pd.pivot_table(draft_eligible_17, index='full_name', aggfunc=np.mean).drop([
-    'season', 'max_pt_season_bin'], axis=1, errors='ignore')
-len(X_piv), len(y_piv), len(draft_eligible_17)
+draft_eligible_17 = pd.pivot_table(
+    draft_eligible_17, index='full_name', aggfunc=np.mean).drop([
+        'season', 'max_pt_season_bin'], axis=1, errors='ignore')
 ```
-
-
-
-
-    (3371, 3371, 689)
-
-
-
-
-
 
 ```python
 # reset the index and drop the full name so we can put this through
@@ -307,32 +235,20 @@ len(X_piv_r), len(y_piv_r), len(draft_eligible_17_final)
 
 
 
-### Use train test split to split up the data
-
+#### Splitting the Training and Testing Data
 
 ```python
-# Run if we want to create pivot tables of data
-
 X_train, X_test, y_train, y_test = train_test_split(
     X_piv_r, y_piv_r, test_size=0.25, random_state=42)
-```
 
-```python
 # convert to binary classifier for y_train & y_test
-def convert_to_binary(x):
-    if x > 0:
-        return 1
-    else:
-        return 0
-
-
 y_train_binary = y_train.max_pt_season_bin.apply(convert_to_binary)
 y_test_binary = y_test.max_pt_season_bin.apply(convert_to_binary)
 ```
 
-### Model Selection
+#### Model Selection
 
-Now that I had the data into my training and testing splits, I started putting them into a few classification models. I started with exploring a basic logistic regression model. While this model performed very well on predicting the players who did not make it to the point threshold, it performed very poorly on predicting the players who would exceed the point threshold. With a precision score of 0.16 and an f1-score of 0.26 on the predicted variable, it was evident we would have to do some additional modeling.
+Now that I had the data into my training and testing splits, I started putting them into a few classification models. I started with exploring a basic logistic regression model. While this model performed very well on predicting the players who did not make it to the point threshold, it performed very poorly on predicting the players who would exceed the point threshold. With a precision score of 0.16 and an f1-score of 0.26 on the predicted variable, it was evident I would have to do some additional feature engineering, parameter searching and modeling.
 
 All in all I tested 6 models & methods (Decision Trees, Random Forest, Logistic Regression, SVM, AdaBoost, KNN). The code for those models and the results are shown below.
 
@@ -353,15 +269,11 @@ y_pred = model_a.predict(X_test)
 
 
 confmat_logit = confusion_matrix(y_true=y_test_binary, y_pred=y_pred)
-print "\t\t\t Logistic Regression Performance \n"
-print classification_report(y_test_binary, y_pred), '\n'
-
 confusion_matrix_logit = pd.DataFrame(confmat_logit,
                                       index=['Actual MPS < 20',
                                              'Actual MPS > 20'],
-                                      columns=['Predicted MPS < 20', 'Predicted MPS > 20'])
-
-print confusion_matrix_logit, '\n'
+                                      columns=['Predicted MPS < 20',
+                                               'Predicted MPS > 20'])
 ```
 
     			 Logistic Regression Performance
@@ -380,7 +292,7 @@ print confusion_matrix_logit, '\n'
 
 
 
-### Logistic Regression GS
+#### Logistic Regression (Grid Search)
 
 
 ```python
@@ -409,7 +321,7 @@ print(gs.best_params_)
 
 Through this process I grid searched my models hyperparameters. I've shown the Logistic Regression grid search and excluded the others for simplicity. When looking at the results you can see that across a number scoring metrics, AUC, Accuracy, F1, F1_micro, F1_macro, the results were poor and noisy at predicting the players to have success in the NHL.
 
-### SVM
+#### Support Vector Machines (SVM)
 
 
 ```python
@@ -420,21 +332,10 @@ X_test = ss.fit_transform(X_test)
 
 svm = SVC(probability=True, C=10, kernel='rbf', degree=3)
 
-
 model_svm = svm.fit(X_train, np.ravel(y_train_binary))
 y_pred_svm = model_svm.predict(X_test)
 
 confmat_svm = confusion_matrix(y_true=y_test_binary, y_pred=y_pred_svm)
-
-print "\t\t\t SVM Performance \n"
-print classification_report(y_test_binary, y_pred_svm), '\n'
-
-confusion_matrix_svm = pd.DataFrame(confmat_svm,
-                                    index=['Actual MPS < 20',
-                                           'Actual MPS > 20'],
-                                    columns=['Predicted MPS < 20', 'Predicted MPS > 20'])
-
-print confusion_matrix_svm, '\n'
 ```
 
     			 SVM Performance
@@ -451,11 +352,11 @@ print confusion_matrix_svm, '\n'
     Actual MPS < 20                 775                  21
     Actual MPS > 20                  32                  15
 
-
+#### Random Forest Classifier
 
 
 ```python
-# grid search random forest classifier
+# grid search for Random Forest classifier
 rfc = RandomForestClassifier()
 
 parameters = [{"n_estimators": [250, 500, 1000],
@@ -478,7 +379,7 @@ def best_config(model, parameters, train_instances, judgements):
 best_config(rfc, parameters, X_train, np.ravel(y_train_binary))
 ```
 
-# Ada Boost
+#### Ada Boost
 
 ```python
 tree = DecisionTreeClassifier(criterion='entropy',
@@ -519,26 +420,8 @@ print('AdaBoost train/test accuracies %.3f/%.3f'
 
 
 ```python
-onfmat_tree = confusion_matrix(y_true=y_test_binary, y_pred=y_test_tree)
+confmat_tree = confusion_matrix(y_true=y_test_binary, y_pred=y_test_tree)
 confmat_ada = confusion_matrix(y_true=y_test_binary, y_pred=y_test_ada)
-
-print "\t\t\t Decision Tree Performance"
-print classification_report(y_test_binary, y_test_tree)
-# put the confusion matrix in a dataframe
-confusion_matrix_tree = pd.DataFrame(confmat_tree,
-                                     index=['Actual MPS < 20',
-                                            'Actual MPS > 20'],
-                                     columns=['Predicted MPS < 20', 'Predicted MPS > 20'])
-print confusion_matrix_tree, '\n\n\n'
-
-print "\t\t\t Ada Boost Performance"
-print classification_report(y_test_binary, y_test_ada)
-confusion_matrix_ada = pd.DataFrame(confmat_ada,
-                                    index=['Actual MPS < 20',
-                                           'Actual MPS > 20'],
-                                    columns=['Predicted MPS < 20', 'Predicted MPS > 20'])
-
-print confusion_matrix_ada, '\n'
 ```
 
     			 Decision Tree Performance
@@ -590,18 +473,6 @@ y_pred_rfr = rfr_gs_model.predict(X_test)
 ```python
 # construct the confusion matrix
 confmat_rfc = confusion_matrix(y_true=y_test_binary, y_pred=y_pred_rfr)
-
-# put the confusion matrix in a dataframe
-confusion_matrix_rfc = pd.DataFrame(confmat_rfc,
-                                    index=['Actual MPS < 20', 'Actual MPS > 20'],
-                                    columns=['Predicted MPS < 20', 'Predicted MPS > 20'])
-
-
-print '\t Random Forest Classifier Performance'
-print "\t *MPS - Max points scored in an NHL season* \n"
-print confusion_matrix_rfc, '\n\n'
-print classification_report(y_test_binary, y_pred_rfr, target_names=["MPS < 20", 'MPS > 20'])
-
 ```
 
     	 Random Forest Classifier Performance
@@ -623,40 +494,42 @@ print classification_report(y_test_binary, y_pred_rfr, target_names=["MPS < 20",
 
 
 ```python
-feature_importance = pd.DataFrame(rfr_gs_model.feature_importances_, index=X_piv_r.columns).sort_values(by=0, ascending=True)
-feature_importance = feature_importance.rename(columns={0:'Relative Importance'})
+feature_importance = pd.DataFrame(
+    rfr_gs_model.feature_importances_, index=X_piv_r.columns).sort_values(by=0, ascending=True)
+feature_importance = feature_importance.rename(
+    columns={0: 'Relative Importance'})
 feature_importance.plot(kind='barh')
 plt.title('Feature Importance')
 plt.tight_layout()
-plt.savefig('/Users/gmaclenn/Documents/capstone-project/feature_importance.png', dpi=300)
+plt.show()
+
 ```
 
 <img src="/images/fulls/CHL-classifier-98-05-technical-report_files/CHL-classifier-98-05-technical-report_69_0.png" class="fit image"/>
 
-## A look at our best features
+#### A Look at the Top Performing Feature
 
 <img src="/images/fulls/CHL-classifier-98-05-technical-report_files/avg-apg2-98-05.png" class="fit image"/>
 
 <img src="/images/fulls/CHL-classifier-98-05-technical-report_files/avg-apg2-98-05_overlay.png" class="fit image"/>
 
-# Results
+#### Results
 
 In our final model, the most important features were season start age, assists per game squared and power-play asissts per game squared. The ADA boost method also provided fairly good results with 69% precision, however it provided better precision at the cost of recall and the overall f1 score versus the Random Forests Classifier. The results hammer home a few important points. The first is that high level production at the Major Junior level still does not guarantee a baseline level of success at the NHL. Even some of the best performers at a young age sometimes fail to make even a modest impact at the next level. I will speculate that much of this has to do with the fact that there is so much physical development that goes on in between the age 15-18 seasons and a player in their point scoring prime in the NHL at age 24-26.
 
 Additionally, I think this study lends further creedence to the idea that there should be an increased look at advanced analytics being used in the Junior league levels. The NHL has started to embrace this with a few teams hiring members from the hockey analytics community, most recently & notably WAR ON ICE co-founder Sam Ventura was hired to the Pittsburgh Penguins to head their analytics staff in 2015[14]. There are a few people who are doing some interesting work to pull additional statistics out of these games beyond the popular corsi and fenwick. For instance, Ryan Stimson's Expected Primary Points would be a great stat to add into this CHL model[15]. Unfortunately since much of this data was not tracked historically there will always be incomplete player profiles when looking at old CHL data.
 
-
-
-
 <img src="/images/fulls/CHL-classifier-98-05-technical-report_files/CHL-classifier-98-05-technical-report_74_0.png" class="fit image"/>
 
-### Examining Classes from 13-16 Seasons using the Random Forests Classifier
+#### Examining Classes from 13-16 Seasons using the Random Forests Classifier
 
 
 ```python
 draft_17_preds = rfr_gs_model.predict(draft_eligible_17_final)
-draft_eligible_predictions = pd.concat([final_test, pd.DataFrame(draft_17_preds)], axis=1)
-draft_eligible_predictions[['full_name', 'season_start_age','apg2','gpg2', 0]].sort_values(0,ascending=False)
+draft_eligible_predictions = pd.concat(
+    [final_test, pd.DataFrame(draft_17_preds)], axis=1)
+draft_eligible_predictions[['full_name', 'season_start_age',
+                            'apg2', 'gpg2', 0]].sort_values(0, ascending=False)
 draft_eligible_predictions.head()
 ```
 
@@ -855,7 +728,7 @@ Once I ran the existing model on the most recent classes of CHL prospects we see
 - Numbers next to undrafted players are draft rankings (as of February 2017)
 
 
-References
+**References:**
 1. Draft by Numbers: Using Data and Analytics to Improve National Hockey League (NHL) Player Selection
 Other Sports 1559 © Michael E. Schuckers, Statistical Sports Consulting, LLC
 2. http://canucksarmy.com/2015/5/26/draft-analytics-unveiling-the-prospect-cohort-success-model
