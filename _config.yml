@@ -3,10 +3,10 @@
 title: Greg MacLennan
 locale: en_US
 description: A Collection of Data Science Projects and Personal Interests
-logo: site-logo.png
+logo: gradient-background.png
 search: true
-url: "https://gmaclenn.github.io" # comment for local hosting
-# url: http://localhost:4000 # uncomment for local hosting
+# url: https://gmaclenn.github.io # comment for local hosting
+url: http://localhost:4000 # uncomment for local hosting
 
 # Jekyll configuration
 
