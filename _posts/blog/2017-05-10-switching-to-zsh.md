@@ -7,10 +7,10 @@ excerpt: "As a data scientist you better know your way around the Bash shell. Wh
 tags: [bash, zsh, oh-my-zsh, z, homebrew]
 image:
   feature:
-date: 2017-05-01
+date: 2017-05-10
 ---
 
-As a data scientist you better know your way around the Bash shell. While you'll want to do more serious modeling in Python or R, getting comfortable at the command line will only speed up your work flows. I'll quickly walk through a few packages and tips to make the terminal experience more enjoyable by setting up Zsh as an alternative.
+As a data scientist you better know your way around the Bash shell. While you'll want to do more serious modeling in Python or R, getting comfortable at the command line will only speed up your work flows. I'll quickly walk through a few packages and tips to make the terminal experience more enjoyable by setting up Zsh as an alternative to Bash.
 
 _The duration of this post will assume you are using a variant of OS X and have Homebrew installed_
 
@@ -126,6 +126,9 @@ ZSH_THEME='bureau'
 ##### Oh-my-zsh Plugins
 Once you've gotten the hang of Zsh, you may want to check out some of the plugins that are available in oh-my-zsh. By default there are over 200+ plugins already installed with oh-my-zsh. This is a downside for those who are looking to keep things light, however it makes it very easy to add additional functionality out of the box. If you look at your `~/.zshrc` file you may see a line that looks like this `plugins=(git brew)`. If you do that's great, you can add other plugins by just specifying their name and leaving a space between plugins. Otherwise you can just add a line that looks like the above. You can find a list of the plugins available [here](https://github.com/robbyrussell/oh-my-zsh/tree/master/plugins). Keep in mind that adding too many plugins may slow things down a bit for you. Plugins will just add handy functions and aliases for the given language or framework that you add to make life a little simpler. For more information read the oh-my-zsh repo.
 
+The git plugin shows a list of git commands after typing git and then pressing TAB.
+<img src="../../images/fulls/2017-05-10-switching-to-zsh/autocomplete.png" class="fit-image">
+
 ##### Syntax Highlighting
 zsh-syntax-highlighting is another great feature that makes the command line a more pleasant experience. Essentially it just lets you know when you're entering a valid command or not.
 
@@ -145,7 +148,7 @@ Z is simply a script that makes navigation around file directories much easier. 
 Z is easy to install, just do `brew install z` and then following the insctructions under `==> Caveats` for how to modify your .zshrc file or by adding the following:
 
 ```sh
-. `brew --prefix`/etc/profile.d/z.sh
+. $(brew --prefix)/etc/profile.d/z.sh
 ```
 
 ##### Solarized Color Scheme
