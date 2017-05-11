@@ -3,14 +3,14 @@ layout: post
 title: "Improving Your Terminal Experience with Zsh"
 modified:
 categories: blog
-excerpt: "As a data scientist you better know your way around the Bash shell. While you'll want to do more serious modeling in Python or R, getting comfortable at the command line will only speed up your work flows"
+excerpt: "As a data scientist you better know your way around Bash. While you'll want to do serious modeling in Python or R, getting comfortable at the command line will only speed up your work flows"
 tags: [bash, zsh, oh-my-zsh, z, homebrew]
 image:
   feature:
 date: 2017-05-10
 ---
 
-As a data scientist you better know your way around the Bash shell. While you'll want to do more serious modeling in Python or R, getting comfortable at the command line will only speed up your work flows. I'll quickly walk through a few packages and tips to make the terminal experience more enjoyable by setting up Zsh as an alternative to Bash.
+As a data scientist you better know your way around Bash. While you'll want to do serious modeling in Python or R, getting comfortable at the command line will only speed up your work flows. I'll quickly walk through a few packages and tips to make the terminal experience more enjoyable by setting up Zsh as an alternative to Bash.
 
 _The duration of this post will assume you are using a variant of OS X and have Homebrew installed_
 
