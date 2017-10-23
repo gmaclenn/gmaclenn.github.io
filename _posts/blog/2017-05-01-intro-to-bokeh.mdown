@@ -9,9 +9,5 @@ image:
   feature:
 date: 2017-05-01
 ---
-##### ** Coming Soon **
-
-For the time being please see the GitHub repository used to distribute resources along with full presentation and notes.
-
-[https://github.com/gmaclenn/bokeh-ODSC](https://github.com/gmaclenn/bokeh-ODSC)
+** Coming Soon **
 
